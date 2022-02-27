@@ -483,9 +483,8 @@ private Object getResponseObject(Object expectedID, Map response) {
 	}
 	return null;
   }
-  
 
-@Override
+  @Override
   public JSONObject listAddressBalances(BigDecimal min) throws GenericRpcException {
 	try {
 		return new JSONObject(new String(loadStream(queryForStream("listaddressbalances", min.toString()), true), QUERY_CHARSET)).getJSONObject("result");
