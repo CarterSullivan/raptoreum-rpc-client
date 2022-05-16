@@ -20,13 +20,11 @@
  */
 package sully.raptoreum.javaraptoreumdrpcclient;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
@@ -35,12 +33,12 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -54,7 +52,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -2470,7 +2467,12 @@ private class BlockWithTxInfoMapWrapper extends BlockBaseMapWrapper implements B
         @Override
         @SuppressWarnings("unchecked")
         public List<String> addresses() {
-          return (List<String>) m.get("addresses");
+          List<String> addresses = ((List<String>) m.get("addresses"));
+          if (addresses == null) {
+              final String address = mapStr("address");
+              return address == null? Collections.emptyList() : Collections.singletonList(address);
+            }
+            return addresses;
         }
 
       }
