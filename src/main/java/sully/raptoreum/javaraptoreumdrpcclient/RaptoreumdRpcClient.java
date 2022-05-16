@@ -20,13 +20,17 @@
  */
 package sully.raptoreum.javaraptoreumdrpcclient;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import org.json.JSONException;
 import org.json.JSONObject;
+
+import sully.raptoreum.javaraptoreumdrpcclient.RaptoreumJSONRPCClient.Balance;
 
 /**
  *
@@ -427,6 +431,9 @@ public interface RaptoreumdRpcClient {
    * @see <a href="https://bitcoin.org/en/developer-reference#createrawtransaction">createrawtransaction</a>
    */
   String createRawTransaction(List<TxInput> inputs, List<TxOutput> outputs) throws GenericRpcException;
+  
+  String createRawFuturesTransaction(List<TxInput> inputs, String outAddr, int future_maturity, int future_locktime,
+			double future_amount, TxOutput changeOutput) throws GenericRpcException;
 
   /**
    * The decodescript RPC decodes a hex-encoded P2SH redeem script.
@@ -1379,6 +1386,11 @@ public interface RaptoreumdRpcClient {
      long getBalance();
      long getReceived();
  }
+ 
+ static interface AddressTxid
+ {
+	 List<String> getTxids();
+ }
 
  /**
   * the result return by {@link RaptoreumJSONRPCClient#getAddressUtxo(String)}
@@ -1454,7 +1466,32 @@ public interface RaptoreumdRpcClient {
 		return amount;
 	}
  }
-
+ 
+ public static class FutureThing {
+	 public final long future_maturity;
+	 public final long future_locktime;
+	 public final BigDecimal future_amount;
+	 
+	 public FutureThing(long future_maturity, long future_locktime, BigDecimal future_amount) {
+		 this.future_maturity=future_maturity;
+		 this.future_amount=future_amount;
+		 this.future_locktime=future_locktime;
+	 }
+	 
+	 public long future_maturity() {
+		 return this.future_maturity;
+	 }
+	 
+	 public long future_locktime() {
+		 return this.future_locktime;
+	 }
+	 
+	 public BigDecimal future_amount() {
+		 return this.future_amount;
+	 }
+	 
+ }
+ 
  public static class BasicTxOutput implements TxOutput {
 
    private static final long serialVersionUID = 4906609252978270536L;
@@ -1464,31 +1501,43 @@ public interface RaptoreumdRpcClient {
    public final BigDecimal amount;
    public final Boolean spendable;
    public final Boolean solvable;
+   public final Boolean futureSpendable;
    public final String desc;
    public final Boolean safe;
    public final byte[] data;
+   public FutureThing future;
+   public boolean isFuture = false;
 
    public BasicTxOutput(String address, BigDecimal amount) {
-     this(address, null, amount, null, null, null, null, null);
+     this(address, null, amount, null, null, null, null, null, null, null);
    }
    
    public BasicTxOutput(String address, BigDecimal amount, byte[] data) {
-	 this(address, null, amount, null, null, null, null, data);
+	 this(address, null, amount, null, null, null, null, null, data, null);
    }
    
    public BasicTxOutput(String address, BigDecimal amount, Boolean spendable, byte[] data) {
-	 this(address, null, amount, spendable, null, null, null, data);
+	 this(address, null, amount, spendable, null, null, null, null, data, null);
+   }
+   
+   public BasicTxOutput(String address, BigDecimal amount, Boolean spendable, Boolean futureSpendable, byte[] data) {
+	   this(address, null, amount, spendable, futureSpendable, null, null, null, data, null);
    }
 
-   public BasicTxOutput(String address, String label, BigDecimal amount, Boolean spendable, Boolean solvable, String desc, Boolean safe, byte[] data) {
+   public BasicTxOutput(String address, String label, BigDecimal amount, Boolean spendable, Boolean futureSpendable, Boolean solvable, String desc, Boolean safe, byte[] data, Object ... futureThings) {
      this.address = address;
      this.label = label;
      this.amount = amount;
      this.spendable = spendable;
+     this.futureSpendable = futureSpendable;
      this.solvable = solvable;
      this.desc = desc;
      this.safe = safe;
      this.data = data;
+     if (futureThings != null) {
+    	 isFuture=true;
+    	 future = (FutureThing) futureThings[0];
+     }
    }
 
    @Override
@@ -1535,6 +1584,17 @@ public interface RaptoreumdRpcClient {
 	{
 		return safe;
 	}
+
+	@Override
+	public FutureThing future() {
+		return this.future;
+	}
+
+	@Override
+	public Boolean futureSpendable() {
+		return null;
+	}
+	
  }
 
  static interface BlockBase<B, T> extends MapWrapperType, Serializable {
@@ -2080,7 +2140,9 @@ public interface RaptoreumdRpcClient {
 
     public String address();
     
-    /**
+    FutureThing future();
+
+	/**
      * @return The label associated with {@link #address()}
      */
     public String label();
@@ -2092,6 +2154,8 @@ public interface RaptoreumdRpcClient {
      */
     public Boolean spendable();
 
+    public Boolean futureSpendable();
+    
     /**
      * @return Whether we know how to spend this output, ignoring the lack of keys
      */
@@ -2276,10 +2340,13 @@ public interface RaptoreumdRpcClient {
 
   }
 
-JSONObject listAddressBalances() throws GenericRpcException;
+List<Balance> listAddressBalances() throws GenericRpcException, JSONException, IOException;
 
-JSONObject listAddressBalances(double min) throws GenericRpcException;
+List<Balance> listAddressBalances(BigDecimal min) throws GenericRpcException, JSONException, IOException;
 
-JSONObject listAddressBalances(BigDecimal min) throws GenericRpcException;
+List<String> getaddresstxids(String address);
+
+
+
 
 }

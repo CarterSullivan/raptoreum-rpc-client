@@ -20,11 +20,13 @@
  */
 package sully.raptoreum.javaraptoreumdrpcclient;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
@@ -33,6 +35,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.AbstractList;
@@ -50,6 +53,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import sully.raptoreum.javaraptoreumdrpcclient.config.RpcClientConfig;
@@ -448,6 +454,40 @@ private Object getResponseObject(Object expectedID, Map response) {
     return (String) query("createrawtransaction", pInputs, pOutputs);
   }
 
+  @SuppressWarnings("serial")
+@Override
+  public String createRawFuturesTransaction(List<TxInput> inputs, String outAddr, int future_maturity, int future_locktime, double future_amount, TxOutput changeOutput) throws GenericRpcException {
+	  List<Map<String, ?>> pInputs = new ArrayList<>();
+	  
+	  for (final TxInput txInput : inputs) {
+	      pInputs.add(new LinkedHashMap<String, Object>() {
+	        {
+	          put("txid", txInput.txid());
+	          put("vout", txInput.vout());
+	        }
+	      });
+	    }
+	  
+	  List<Map<String, Object>> pOutputs = new ArrayList<>();
+	  Map<String, Object> futureThing = new LinkedHashMap<>();
+	  futureThing.put("future_maturity", future_maturity);
+	  futureThing.put("future_locktime", future_locktime);
+	  futureThing.put("future_amount", future_amount);
+	  pOutputs.add(new LinkedHashMap<String, Object>() {
+		  {
+		  put(outAddr, futureThing);
+		  }
+	  });
+	  pOutputs.add(new LinkedHashMap<String, Object>() {
+		  {
+			  put(changeOutput.address(), changeOutput.amount());
+		  }
+	  });
+	  System.out.print(pInputs.toString()+" ");
+	  System.out.println(pOutputs.toString());
+	  return (String) query("createrawtransaction", pInputs, pOutputs);
+  }
+  
   @Override
   public String dumpPrivKey(String address) throws GenericRpcException {
     return (String) query("dumpprivkey", address);
@@ -474,36 +514,36 @@ private Object getResponseObject(Object expectedID, Map response) {
     return (BigDecimal) query("getbalance");
   }
   
-  @Override
-  public JSONObject listAddressBalances() throws GenericRpcException {
-	try {
-		return new JSONObject(new String(loadStream(queryForStream("listaddressbalances", null), true), QUERY_CHARSET)).getJSONObject("result");
-	} catch (GenericRpcException | IOException e) {
-		e.printStackTrace();
-	}
-	return null;
-  }
-
-  @Override
-  public JSONObject listAddressBalances(BigDecimal min) throws GenericRpcException {
-	try {
-		return new JSONObject(new String(loadStream(queryForStream("listaddressbalances", min.toString()), true), QUERY_CHARSET)).getJSONObject("result");
-	} catch (GenericRpcException | IOException e) {
-		e.printStackTrace();
-	}
-	return null;
+  public List<Balance> listAddressBalances() throws GenericRpcException, JSONException, IOException {
+	  JSONObject jsonObj = new JSONObject(new String(loadStream(queryForStream("listaddressbalances",null),true),QUERY_CHARSET)).getJSONObject("result");
+	  List<Balance> balances = new ArrayList<Balance>();
+	  for (String o : jsonObj.keySet())
+		  balances.add(new Balance(o,jsonObj.getBigDecimal(o)));
+	  return balances;
   }
   
-  @Override
-  public JSONObject listAddressBalances(double min) throws GenericRpcException {
-	  try {
-			return new JSONObject(new String(loadStream(queryForStream("listaddressbalances", min), true), QUERY_CHARSET)).getJSONObject("result");
-		} catch (GenericRpcException | IOException e) {
-			e.printStackTrace();
-		}
-		return null;
+  public List<Balance> listAddressBalances(BigDecimal d) throws GenericRpcException, JSONException, IOException {
+	  JSONObject jsonObj = new JSONObject(new String(loadStream(queryForStream("listaddressbalances",d.toPlainString()),true),QUERY_CHARSET)).getJSONObject("result");
+	  List<Balance> balances = new ArrayList<Balance>();
+	  for (String o : jsonObj.keySet())
+		  balances.add(new Balance(o,jsonObj.getBigDecimal(o)));
+	  return balances;
+  }
+  
+  public JSONObject quickNode(String txid, String addr1, String ip) throws GenericRpcException, IOException {
+	  int vout = 1;
+	//  String command = "curl --user user --password pass --data-binary '{\"jsonrpc\":\"1.0\",\"id\":\"curltest\",\"method\":\"protx\",params\":[\"quick_setup\""
+	//  		+ ",\""+txid+"\","+vout+",\""+(ip+":10228")+"\",\""+addr1+"\"]} -H 'content-type:text/plain;' http://127.0.0.1:10229/";
+	  ip = ip + ":10228";
+	  Object[] stuff = {"quick_setup",txid,vout+"",ip,addr1};
+	  return new JSONObject(query("protx", stuff));
   }
 
+  @SuppressWarnings("unchecked")
+  @Override
+  public List<String> getaddresstxids(String address) {
+	 return (List<String>) query("getaddresstxids",address);
+  }
   
   @Override
   public BigDecimal getBalance(String account) throws GenericRpcException {
@@ -521,10 +561,11 @@ private Object getResponseObject(Object expectedID, Map response) {
     return new SmartFeeResultMapWrapper((Map<String, ?>) query("estimatesmartfee", blocks));
   }
 
+ 
+  
   @Override
   public Block getBlock(int height) throws GenericRpcException {
-    String hash = (String) query("getblockhash", height);
-    return getBlock(hash);
+    return getBlock((String) query("getblockhash", height));
   }
 
   @Override
@@ -555,6 +596,7 @@ private Object getResponseObject(Object expectedID, Map response) {
     return new BlockChainInfoMapWrapper((Map<String, ?>) query("getblockchaininfo"));
   }
 
+  
   @Override
   @SuppressWarnings({ "unchecked" })
   public AddressInfo getAddressInfo(String address) throws GenericRpcException {
@@ -2811,6 +2853,26 @@ private class BlockWithTxInfoMapWrapper extends BlockBaseMapWrapper implements B
       return new UnspentWrapper(m);
     }
   }
+  
+  public class Balance {
+	  
+	  private final String address;
+	  private final BigDecimal balance;
+	  
+	  public Balance(String address, BigDecimal balance) {
+		  this.address=address;
+		  this.balance=balance;
+	  }
+	  
+	  public String address() {
+		  return this.address;
+	  }
+	  
+	  public BigDecimal balance() {
+		  return this.balance;
+	  }
+	  
+  }
 
   @SuppressWarnings("serial")
   private class UnspentWrapper extends MapWrapper implements Unspent {
@@ -2898,6 +2960,16 @@ private class BlockWithTxInfoMapWrapper extends BlockBaseMapWrapper implements B
 	public Boolean safe()
 	{
 		return mapBool("safe");
+	}
+
+	@Override
+	public FutureThing future() {
+		return null;
+	}
+
+	@Override
+	public Boolean futureSpendable() {
+		return mapBool("futureSpendable");
 	}
   }
 
