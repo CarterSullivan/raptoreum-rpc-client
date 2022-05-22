@@ -3223,4 +3223,9 @@ private class BlockWithTxInfoMapWrapper extends BlockBaseMapWrapper implements B
 	    return utxoList;
 	  }
 	}
+
+	@SuppressWarnings("unchecked")
+	public List<String> resendWalletTransactions() {
+		return (List<String>) query("resendWalletTransactions");
+	}
 }
