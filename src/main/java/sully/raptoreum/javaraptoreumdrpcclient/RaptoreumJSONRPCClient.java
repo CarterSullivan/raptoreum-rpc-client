@@ -3226,6 +3226,32 @@ private class BlockWithTxInfoMapWrapper extends BlockBaseMapWrapper implements B
 
 	@SuppressWarnings("unchecked")
 	public List<String> resendWalletTransactions() {
-		return (List<String>) query("resendWalletTransactions");
+		return (List<String>) query("resendwallettransactions");
 	}
+	// custom sender thing
+	/*
+	public String sendFromAddress(String fromAddress, String toAddress, BigDecimal amount, List<Unspent> unspents) throws Exception {
+		SimpleRawTXBuilder tx = new SimpleRawTXBuilder(this);
+		double totalAmount = 0;
+		for (Unspent u:unspents) {
+			if (u.address().equals(fromAddress)) {
+				tx.addInput(u);
+				totalAmount = SimpleRawTXBuilder.rd(totalAmount + u.amount().doubleValue());
+				if (totalAmount >= amount.doubleValue()) break;
+			}
+			throw new Exception("Amount exceeds balance");
+		}
+		tx.addOutput(toAddress, amount);
+		double fee = SimpleRawTXBuilder.rd(this.estimateSmartFee(6).feeRate().doubleValue() + this.getNetworkInfo().relayFee().doubleValue());
+		tx.editOutput(toAddress, SimpleRawTXBuilder.rd(amount.doubleValue()-(fee*tx.signRaw().length()/2000)));
+		if ()
+		tx.addOutput(toAddress, amount);
+		String txid = "";
+		
+		return txid;
+		
+	}
+	public String sendFromAddress(String fromAddress, String toAddress, BigDecimal amount) throws GenericRpcException, Exception {return this.sendFromAddress(fromAddress, toAddress, amount, this.listUnspent());}
+	public String sendFromAddress(String fromAddress, String toAddress, double amount) throws GenericRpcException, Exception {return this.sendFromAddress(fromAddress, toAddress, new BigDecimal(amount), this.listUnspent());}
+	public String sendFromAddress(String fromAddress, String toAddress, double amount, List<Unspent> unspents) throws Exception {return this.sendFromAddress(fromAddress, toAddress, new BigDecimal(amount), unspents);} */
 }

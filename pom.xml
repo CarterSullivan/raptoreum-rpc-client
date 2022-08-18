@@ -78,11 +78,10 @@
       <artifactId>commons-lang3</artifactId>
       <version>3.12.0</version>
     </dependency>
-		
     <!-- https://github.com/lviggiano/owner -->
     <dependency>
       <groupId>org.aeonbits.owner</groupId>
-      <artifactId>owner-java8</artifactId>
+      <artifactId>owner</artifactId>
       <version>1.0.12</version>
     </dependency>
 		
